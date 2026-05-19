@@ -1,22 +1,85 @@
-version: '3.9'
+networks:
+  chat_net:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  portainer_data:
 
 services:
+
+  # ── MongoDB ─────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb_service
+    restart: unless-stopped
+    networks:
+      - chat_net
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis_service
+    restart: unless-stopped
+    networks:
+      - chat_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # ── RabbitMQ ────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_service
+    restart: unless-stopped
+    hostname: rabbitmq
+    networks:
+      chat_net:
+        aliases:
+          - rabbitmq
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ── Backend FastAPI ─────────────────────────────────────────
   backend:
     build: ./backend_chat
     container_name: backend_service
+    restart: unless-stopped
+    networks:
+      - chat_net
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend_chat/uploads:/app/uploads
     env_file:
       - ./backend_chat/.env
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
+    volumes:
+      - ./backend_chat/uploads:/app/uploads
     depends_on:
-      - mongodb
-      - redis
-      - rabbitmq
-    restart: unless-stopped
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   # ── Frontend React ──────────────────────────────────────────
   frontend:
@@ -26,72 +89,49 @@ services:
         VITE_API_URL: http://localhost:8000
         VITE_WS_URL: ws://localhost:8000
     container_name: frontend_service
+    restart: unless-stopped
+    networks:
+      - chat_net
     ports:
       - "5173:5173"
     depends_on:
       - backend
-    restart: unless-stopped
-
-  # ── MongoDB ─────────────────────────────────────────────────
-  mongodb:
-    image: mongo:7
-    container_name: mongodb_service
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    restart: unless-stopped
-
-  # ── Redis ───────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: redis_service
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
-
-  # ── RabbitMQ ────────────────────────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq_service
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    restart: unless-stopped
 
   # ── Dozzle (logs visuales) ──────────────────────────────────
   dozzle:
-    image: amir20/dozzle
+    image: amir20/dozzle:latest
     container_name: dozzle_logs
+    restart: unless-stopped
+    networks:
+      - chat_net
     ports:
       - "9999:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
 
   # ── Portainer (administración Docker) ──────────────────────
   portainer:
     image: portainer/portainer-ce
     container_name: portainer
+    restart: always
+    networks:
+      - chat_net
     ports:
       - "9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
-    restart: always
 
   # ── Redis Commander ─────────────────────────────────────────
   redis-commander:
-    image: rediscommander/redis-commander
+    image: rediscommander/redis-commander:latest
     container_name: redis_commander
+    restart: unless-stopped
+    networks:
+      - chat_net
     ports:
       - "8081:8081"
     environment:
       - REDIS_HOSTS=local:redis:6379
     depends_on:
       - redis
-    restart: unless-stopped
-
-volumes:
-  mongo_data:
-  portainer_data:
