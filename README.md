@@ -199,3 +199,71 @@ MongoDB     Redis     RabbitMQ
 | `dozzle_logs` | Dozzle | Visor de logs en tiempo real |
 | `portainer` | Portainer CE | Panel de administración Docker |
 | `redis_commander` | Redis Commander | Visor de claves Redis |
+
+
+---
+
+## ¿Qué hace automáticamente `deploy.ps1`?
+
+El script `deploy.ps1` fue diseñado para que cualquier persona pueda desplegar el sistema con un solo comando, incluso si no tiene experiencia previa con Docker.
+
+El script realiza automáticamente las siguientes tareas:
+
+- ✅ Verifica que Docker Desktop esté corriendo
+- ✅ Crea el archivo `.env` automáticamente si no existe
+- ✅ Limpia contenedores anteriores para evitar conflictos
+- ✅ Construye las imágenes Docker necesarias
+- ✅ Levanta todos los servicios automáticamente
+- ✅ Muestra el estado de los contenedores
+- ✅ Abre el frontend automáticamente en el navegador
+- ✅ Maneja errores básicos de despliegue
+
+Gracias a esto, el usuario no necesita instalar Python, Node.js, MongoDB, Redis ni RabbitMQ localmente.
+
+---
+
+## Solución de problemas comunes
+
+### Error: "la ejecución de scripts está deshabilitada"
+
+Si PowerShell muestra un error similar a:
+
+```powershell
+No se puede cargar el archivo deploy.ps1 porque la ejecución de scripts está deshabilitada
+```
+
+Ejecuta este comando en PowerShell:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Luego vuelve a ejecutar:
+
+```powershell
+.\deploy.ps1
+```
+
+---
+
+### Docker Desktop no está corriendo
+
+Si aparece un error relacionado con Docker:
+
+```powershell
+Docker Desktop no esta corriendo
+```
+
+Abre Docker Desktop desde el menú inicio y espera a que la ballena 🐳 indique:
+
+```text
+Docker Desktop is running
+```
+
+---
+
+### El primer despliegue tarda demasiado
+
+Es normal. La primera vez Docker descarga todas las imágenes necesarias (MongoDB, Redis, RabbitMQ, etc.). Dependiendo de tu internet puede tardar varios minutos.
+
+Los siguientes despliegues serán mucho más rápidos.
