@@ -1,0 +1,130 @@
+/**
+ * Input de mensaje con textarea auto-expandible y botón de imagen.
+ * Enter envía, Shift+Enter hace salto de línea.
+ */
+import { useState, useRef, type KeyboardEvent } from 'react'
+import { IconSend, IconPhoto } from '@tabler/icons-react'
+import { useIdioma } from '../context/IdiomaContext'
+
+interface Props {
+  onEnviar: (contenido: string) => void
+  onEnviarImagen?: (archivo: File) => void
+  deshabilitado?: boolean
+}
+
+export function InputMensaje({ onEnviar, onEnviarImagen, deshabilitado = false }: Props) {
+  const { t } = useIdioma()
+  const [texto, setTexto] = useState('')
+  const inputImagenRef = useRef<HTMLInputElement>(null)
+
+  const enviar = () => {
+    const contenido = texto.trim()
+    if (!contenido || deshabilitado) return
+    onEnviar(contenido)
+    setTexto('')
+  }
+
+  const manejarTecla = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      enviar()
+    }
+  }
+
+  const seleccionarImagen = () => {
+    if (!deshabilitado) inputImagenRef.current?.click()
+  }
+
+  const manejarImagen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0]
+    if (archivo && onEnviarImagen) {
+      onEnviarImagen(archivo)
+      e.target.value = ''
+    }
+  }
+
+  const puedeEnviar = !!texto.trim() && !deshabilitado
+
+  return (
+  <div
+    className="flex items-end border-t"
+    style={{
+      backgroundColor: 'var(--color-bg-secondary)',
+      borderColor: 'var(--color-border)',
+      boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
+      padding: '0.75rem 0.75rem',
+      gap: '0.5rem'
+    }}
+  >
+    {/* Input oculto para seleccionar imagen */}
+    <input
+      ref={inputImagenRef}
+      type="file"
+      accept="image/*"
+      style={{ display: 'none' }}
+      onChange={manejarImagen}
+    />
+
+    {/* Botón imagen */}
+    {onEnviarImagen && (
+      <button
+        type="button"
+        onClick={seleccionarImagen}
+        disabled={deshabilitado}
+        className="flex-shrink-0 flex items-center justify-center rounded-2xl transition-all disabled:opacity-40"
+        style={{
+          backgroundColor: 'var(--color-bg-tertiary)',
+          color: 'var(--color-text-muted)',
+          border: '1px solid var(--color-border)',
+          width: '3rem',
+          height: '3rem',
+        }}
+        title="Enviar imagen"
+      >
+        <IconPhoto size={20} />
+      </button>
+    )}
+
+    <textarea
+      value={texto}
+      onChange={e => setTexto(e.target.value)}
+      onKeyDown={manejarTecla}
+      placeholder={t.chat.messagePlaceholder}
+      disabled={deshabilitado}
+      rows={1}
+      className="flex-1 resize-none rounded-2xl outline-none transition-all"
+      style={{
+        backgroundColor: 'var(--color-bg-primary)',
+        color: 'var(--color-text-primary)',
+        border: '2px solid var(--color-border)',
+        maxHeight: '140px',
+        lineHeight: '1.5',
+        padding: '0.875rem 1.125rem',
+        fontSize: '0.875rem'
+      }}
+      onInput={e => {
+        const el = e.currentTarget
+        el.style.height = 'auto'
+        el.style.height = `${Math.min(el.scrollHeight, 140)}px`
+      }}
+    />
+    <button
+      onClick={enviar}
+      disabled={!puedeEnviar}
+      className="flex-shrink-0 flex items-center justify-center rounded-2xl transition-all"
+      style={{
+        backgroundColor: puedeEnviar ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+        color: puedeEnviar ? '#fff' : 'var(--color-text-muted)',
+        transform: puedeEnviar ? 'scale(1)' : 'scale(0.92)',
+        transition: 'all 0.2s ease',
+        boxShadow: puedeEnviar ? 'var(--shadow-md)' : 'none',
+        width: '3rem',
+        height: '3rem'
+      }}
+      title={t.chat.send}
+    >
+      <IconSend size={20} />
+    </button>
+  </div>
+)
+}

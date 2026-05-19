@@ -1,0 +1,97 @@
+version: '3.9'
+
+services:
+
+  # ── Backend FastAPI ─────────────────────────────────────────
+  backend:
+    build: ./backend_chat
+    container_name: backend_service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend_chat/uploads:/app/uploads
+    env_file:
+      - ./backend_chat/.env
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+
+  # ── Frontend React ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend_chat
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_WS_URL: ws://localhost:8000
+    container_name: frontend_service
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── MongoDB ─────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: mongodb_service
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  # ── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis_service
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # ── RabbitMQ ────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_service
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+
+  # ── Dozzle (logs visuales) ──────────────────────────────────
+  dozzle:
+    image: amir20/dozzle
+    container_name: dozzle_logs
+    ports:
+      - "9999:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # ── Portainer (administración Docker) ──────────────────────
+  portainer:
+    image: portainer/portainer-ce
+    container_name: portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: always
+
+  # ── Redis Commander ─────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander
+    container_name: redis_commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  portainer_data:
